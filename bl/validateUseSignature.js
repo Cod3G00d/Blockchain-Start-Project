@@ -29,9 +29,26 @@ class ValidateUserSignature {
     async requestValidation(address) {
         return new Promise((resolve, reject) => {
             if (address != "undefined" && address != "") {
-                this.buildRequest(address).then((request) => {
-                    DL.addSignature(request.status.address, request);
-                    resolve(request);
+                DL.getSignature(address).then((value) => {
+                    if (value) {
+                        value = JSON.parse(value);
+                        const sub = Date.now() - (5 * 60 * 1000)
+                        const isExpired = value.status.requestTimeStamp < sub
+                        if (isExpired) {
+                            DL.delSignature(address);
+                            value.status.validationWindow = 0
+                            value.status.messageSignature = 'Validation window was expired'
+                            resolve(value)
+                        } else {
+                            value.status.validationWindow = Math.floor((value.status.requestTimeStamp - sub) / 1000);
+                            resolve(value);
+                        }
+                    } 
+                }).catch((err) => {
+                    this.buildRequest(address).then((request) => {
+                        DL.addSignature(request.status.address, request);
+                        resolve(request);
+                    });
                 });
             }
         });
